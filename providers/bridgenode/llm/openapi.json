@@ -9,12 +9,12 @@
             "email": "eli.BNx@proton.me"
         },
         "description": "AI inference bridge \u2014 no API keys, pay with Solana USDC via x402",
-        "x-guidance": "x402 payment flow: request \u2192 402 (PAYMENT-REQUIRED) \u2192 sign Solana USDC transfer \u2192 retry with PAYMENT-SIGNATURE header."
+        "x-guidance": "BridgeNode is an AI inference bridge: no API keys, pay per request with Solana USDC via x402. POST /v1/chat/completions with {\"model\": <model>, \"messages\": [{\"role\": \"user\", \"content\": \"...\"}]} \u2014 the unpaid request returns 402 with exact price (USDC atomic units), payTo (Solana wallet) and memo; sign the Solana USDC transfer and retry with the PAYMENT-SIGNATURE header. GET /v1/models lists models and prices (free). Available models: deepseek-v4-flash, deepseek-v4-pro, groq-llama-3.3-70b. Prices: from $0.0020 per request."
     },
     "paths": {
         "/v1/chat/completions": {
             "post": {
-                "summary": "Generate an AI chat completion with a selected model",
+                "summary": "Generate an AI chat completion - pay per request via x402",
                 "operationId": "chat_completions_v1_chat_completions_post",
                 "responses": {
                     "200": {
@@ -29,7 +29,7 @@
                         "description": "Payment Required \u2014 x402 challenge (PAYMENT-REQUIRED header)"
                     }
                 },
-                "description": "Generate a chat completion for the selected model. An unpaid request returns an x402 challenge; sign it with a Solana wallet and retry with the PAYMENT-SIGNATURE header.",
+                "description": "Pay per request with Solana USDC via x402 \u2014 no API keys, no accounts, no subscriptions. Generate a chat completion for the selected model. Paid endpoint: an unpaid request returns an x402 challenge (exact price in USDC atomic units, payTo and memo); sign the Solana USDC transfer and retry with the PAYMENT-SIGNATURE header. Provide either model (explicit id) or mode (auto/eco/premium routing); if both are sent, model wins. max_tokens defaults to 4096 and is clamped to the model's max output. To inspect models and prices first, use the free GET /v1/models.",
                 "security": [
                     {
                         "x402": []
@@ -45,6 +45,94 @@
                         "min": "0.002000",
                         "max": "0.905216"
                     }
+                },
+                "x-pay-metering": {
+                    "schemes": [
+                        "x402-exact"
+                    ],
+                    "variants": [
+                        {
+                            "param": "model",
+                            "value": "deepseek-v4-flash",
+                            "description": "Per-token pricing for deepseek-v4-flash",
+                            "dimensions": [
+                                {
+                                    "direction": "input",
+                                    "unit": "tokens",
+                                    "scale": 1000000,
+                                    "tiers": [
+                                        {
+                                            "price_usd": 0.2
+                                        }
+                                    ]
+                                },
+                                {
+                                    "direction": "output",
+                                    "unit": "tokens",
+                                    "scale": 1000000,
+                                    "tiers": [
+                                        {
+                                            "price_usd": 0.4
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "param": "model",
+                            "value": "deepseek-v4-pro",
+                            "description": "Per-token pricing for deepseek-v4-pro",
+                            "dimensions": [
+                                {
+                                    "direction": "input",
+                                    "unit": "tokens",
+                                    "scale": 1000000,
+                                    "tiers": [
+                                        {
+                                            "price_usd": 0.85
+                                        }
+                                    ]
+                                },
+                                {
+                                    "direction": "output",
+                                    "unit": "tokens",
+                                    "scale": 1000000,
+                                    "tiers": [
+                                        {
+                                            "price_usd": 1.7
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "param": "model",
+                            "value": "groq-llama-3.3-70b",
+                            "description": "Per-token pricing for groq-llama-3.3-70b",
+                            "dimensions": [
+                                {
+                                    "direction": "input",
+                                    "unit": "tokens",
+                                    "scale": 1000000,
+                                    "tiers": [
+                                        {
+                                            "price_usd": 0.79
+                                        }
+                                    ]
+                                },
+                                {
+                                    "direction": "output",
+                                    "unit": "tokens",
+                                    "scale": 1000000,
+                                    "tiers": [
+                                        {
+                                            "price_usd": 0.99
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
                 },
                 "requestBody": {
                     "required": true,
@@ -103,6 +191,17 @@
                                     "model",
                                     "messages"
                                 ]
+                            },
+                            "example": {
+                                "model": "deepseek-v4-flash",
+                                "mode": "auto",
+                                "messages": [
+                                    {
+                                        "role": "user",
+                                        "content": "Hello"
+                                    }
+                                ],
+                                "max_tokens": 128
                             }
                         }
                     }
@@ -143,6 +242,11 @@
                 "security": []
             }
         }
+    },
+    "x-discovery": {
+        "ownershipProofs": [
+            "57VRDHQswwt8WdmRHa2SDQTPai8LVan8bLbao7H3ZUNcrEsA8w6wyWcVTCNAcaR1iCSxhYmBYC1Wu2tRML9i88WC"
+        ]
     },
     "components": {
         "securitySchemes": {
